@@ -1,0 +1,21 @@
+.MUIDataGrid-viewport,
+.MUIDataGrid-row,
+.MUIDataGrid-renderingZone {
+  max-height: fit-content !important;
+}
+
+.MUIDataGrid-cell {
+  max-height: fit-content !important;
+  overflow: auto;
+  max-height: inherit;
+  white-space: initial !important;
+  line-height: 20px !important;
+  display: flex !important;
+  align-items: center;
+  padding-top: 10px !important;
+  padding-bottom: 10px !important;
+}
+
+.ParticipantsTable-cellStyle {
+  background-color: aliceblue;
+}
