@@ -145,10 +145,9 @@ function App(): React.ReactElement {
       if (localStorage.getItem('ADMIN_LOGIN') === 'yes') {
         // API Call to Renew Token
         const response = await getRenew();
-        if (response.status >= 200 && response.status < 300) {
+        if (response) {
           loginContext.dispatch({ type: 'INITIALIZE', login: true });
         } else {
-          localStorage.removeItem('ADMIN_LOGIN');
           loginContext.dispatch({ type: 'INITIALIZE', login: false });
         }
       } else {
