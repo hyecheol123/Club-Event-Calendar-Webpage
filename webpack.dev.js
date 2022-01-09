@@ -11,6 +11,9 @@ module.exports = merge(common, {
     hot: true,
     allowedHosts: ['.loca.lt'],
     historyApiFallback: true,
+    proxy: {
+      '/api': { target: 'https://calendar.hcjang.com', changeOrigin: true },
+    },
   },
   plugins: [
     new webpack.HotModuleReplacementPlugin(),

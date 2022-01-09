@@ -14,7 +14,6 @@ module.exports = {
     filename: '[name].[contenthash:8].bundle.js',
     chunkFilename: '[name].[contenthash:8].chunk.bundle.js',
     clean: true,
-    proxy: { '/api': { target: 'calendar.hcjang.com', changeOrigin: true } },
   },
   optimization: {
     splitChunks: {

@@ -17,6 +17,8 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import '@fontsource/ibm-plex-sans-kr/300.css';
 import '@fontsource/ibm-plex-sans-kr/400.css';
 import '@fontsource/ibm-plex-sans-kr/500.css';
+// API
+import getRenew from './api/auth/getRenew';
 // Elements
 import Loading from './components/Loading/Loading';
 import { LoginContextProvider, useLoginContext } from './LoginData';
@@ -135,20 +137,29 @@ function App(): React.ReactElement {
   // State
   const loginContext = useLoginContext();
 
-  // Initialize Appl.ication
-  React.useEffect(() => {
+  // Initialize App.ication
+  const init = React.useCallback(async () => {
     // When application not initialized
     if (!loginContext.initialized) {
       // check whether admin token alive or not
       if (localStorage.getItem('ADMIN_LOGIN') === 'yes') {
-        // TODO: API Call to Renew Token
-        loginContext.dispatch({ type: 'INITIALIZE', login: true });
-        // TODO: If failed, unset localStorage flag
+        // API Call to Renew Token
+        const response = await getRenew();
+        if (response.status >= 200 && response.status < 300) {
+          loginContext.dispatch({ type: 'INITIALIZE', login: true });
+        } else {
+          localStorage.removeItem('ADMIN_LOGIN');
+          loginContext.dispatch({ type: 'INITIALIZE', login: false });
+        }
       } else {
         localStorage.removeItem('ADMIN_LOGIN');
         loginContext.dispatch({ type: 'INITIALIZE', login: false });
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  React.useEffect(() => {
+    init();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
