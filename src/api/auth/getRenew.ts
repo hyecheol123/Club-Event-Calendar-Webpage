@@ -8,7 +8,6 @@ import API_URL from '../../globalData/API_URL';
  * @author Hyecheol (Jerry) Jang <hyecheol123@gmail.com>
  */
 function getRenew(): Promise<Response> {
-  console.log(`${API_URL}/auth/renew`);
   return fetch(`${API_URL}/auth/renew`);
 }
 

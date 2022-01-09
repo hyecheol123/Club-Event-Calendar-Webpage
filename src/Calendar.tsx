@@ -13,6 +13,8 @@ import {
   ArrowBackIosRounded,
   ArrowForwardIosRounded,
 } from '@mui/icons-material';
+// API
+import getEventList from './api/calendar/getEventList';
 // Components
 import CalendarBox from './components/Calendar/CalendarBox';
 import DaysOfWeek from './components/Calendar/DaysOfWeek';
@@ -22,6 +24,14 @@ import headerStyle from './globalStyle/headerStyle';
 
 // Styles
 const styles = { ...headerStyle };
+
+// Types
+type EventSummary = {
+  id: string;
+  name: string;
+  date: number;
+  category?: string;
+};
 
 /**
  * Function to generate style for the calendar
@@ -80,7 +90,8 @@ function Calendar(): React.ReactElement {
   const numDates = new Date(year, month + 1, 0).getDate();
   const nRow = Math.ceil((startDayIdx + numDates) / 7);
 
-  React.useEffect(() => {
+  // Retrieve EventList to draw event
+  const retrieveEventList = React.useCallback(async () => {
     if (modifyFlag) {
       // Draw Layout
       const tempData = new Array(nRow * 7).fill({
@@ -92,43 +103,32 @@ function Calendar(): React.ReactElement {
       }
       setCalendarData(tempData);
 
-      // TODO: API Call
+      // API Call
       const completeData = [...tempData];
-      const response = {
-        numEvent: 3,
-        eventList: [
-          {
-            id: 1,
-            name: '디스코드 비대면 모각코',
-            date: 14,
-          },
-          {
-            id: 2,
-            name: '서면 스타벅스 정기 모임',
-            date: 24,
-            category: '정기모임',
-          },
-          {
-            id: 3,
-            name: 'mm 정기모임 - 당신이 사랑하는 프로그래밍 언어는?',
-            date: 28,
-            category: '비대면',
-          },
-          {
-            id: 4,
-            name: '디스코드 비대면 모각코',
-            date: 28,
-          },
-        ],
-      };
-      response.eventList.forEach((event) => {
-        const idx = startDayIdx - 1 + event.date;
-        completeData[idx].eventList = [...completeData[idx].eventList, event];
-      });
-      setCalendarData(completeData);
-      setModifyFlag(false);
+      const response = await getEventList(year, month + 1);
+      if (!response) {
+        // Error: year and month invalid
+        // TODO: Display Error Message
+      } else if (response.status >= 200 && response.status < 300) {
+        const data = await response.json();
+        if (data.numEvent > 0) {
+          data.eventList.forEach((event: EventSummary) => {
+            const idx = startDayIdx - 1 + event.date;
+            completeData[idx].eventList = [
+              ...completeData[idx].eventList,
+              event,
+            ];
+          });
+        }
+        setCalendarData(completeData);
+        setModifyFlag(false);
+      }
     }
-  }, [nRow, numDates, startDayIdx, modifyFlag]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modifyFlag, year, month]);
+  React.useEffect(() => {
+    retrieveEventList();
+  }, [retrieveEventList]);
 
   /**
    * Helper method to change month
