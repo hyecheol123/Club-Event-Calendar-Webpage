@@ -17,6 +17,8 @@ import {
 } from '@mui/material';
 // Custom Hook to load LoginContext
 import { useLoginContext } from './LoginData';
+// API
+import postLogin from './api/auth/postLogin';
 // Styles
 import styles from './globalStyle/accountStyle';
 
@@ -74,7 +76,7 @@ function Login(): React.ReactElement {
 
   // Submit Event Handler
   const formSubmit: React.FormEventHandler<HTMLFormElement> = React.useCallback(
-    (event: React.SyntheticEvent) => {
+    async (event: React.SyntheticEvent) => {
       event.preventDefault();
       setDisabled(true);
       // Check validity of inputs
@@ -83,13 +85,25 @@ function Login(): React.ReactElement {
         return;
       }
 
-      // TODO: Submit API request
-      console.log('Login Request');
-      console.log(username);
-      console.log(password);
-      localStorage.setItem('ADMIN_LOGIN', 'yes');
-      loginContext.dispatch({ type: 'LOGIN' });
-      goBack();
+      // Submit API request
+      const response = await postLogin(username, password);
+      if (response.status >= 200 && response.status < 300) {
+        localStorage.setItem('ADMIN_LOGIN', 'yes');
+        loginContext.dispatch({ type: 'LOGIN' });
+        goBack();
+      } else if (response.status === 400) {
+        setDisabled(false);
+        setError({ error: true, msg: '400 BAD REQUEST: Check your input' });
+      } else if (response.status === 401) {
+        setDisabled(false);
+        setError({
+          error: true,
+          msg: 'Cannot find matching account with given credentials',
+        });
+      } else {
+        setDisabled(false);
+        setError({ error: true, msg: 'UNKNOWN ERROR' });
+      }
     },
     [inputCheck, loginContext, password, username, goBack]
   );
