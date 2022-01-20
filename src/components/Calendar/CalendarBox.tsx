@@ -38,10 +38,12 @@ const colorMap: { [index: string]: string } = {
  * Function to generate style properties of each event entry
  *
  * @param {string} category event's category
+ * @param {boolean} finishedRender Whether render is finished
  * @return {object} Style object of event entry
  */
-function styleProvider(category: string): object {
+function styleProvider(category: string, finishedRender: boolean): object {
   return {
+    opacity: finishedRender ? 1 : 0,
     width: '100%',
     backgroundColor: colorMap[category] ? colorMap[category] : colorMap.etc,
     padding: category === 'more' ? '1px 2px' : '2px 3px',
@@ -58,52 +60,74 @@ function styleProvider(category: string): object {
  * @return {React.ReactElement} Renders CalendarBox
  */
 function CalendarBox(props: CalendarBoxProps): React.ReactElement {
-  const { date, eventList, dateString } = props;
   // Props
+  const { date, eventList, dateString } = props;
+  // States
   const [numEventEntry, setNumEventEntry] = React.useState(Number.MAX_VALUE);
   const [modalOpen, setModalOpen] = React.useState(false);
+  const [boxSize, setBoxSize] = React.useState(0);
+  const [dateSize, setDateSize] = React.useState(0);
+  const [eventSize, setEventSize] = React.useState(0);
+  const [finishedRender, setFinishedRender] = React.useState(false);
   // Ref
   const boxRef = React.useRef(null);
+  const dateRef = React.useRef(null);
   const eventRef = React.useRef(null);
 
   // Calculate how many event entry can be displayed in the box
+  const updateElemSize = React.useCallback((): void => {
+    // When no eventRef boxRef, or dateRef set, do nothing
+    if (!eventRef.current || !boxRef.current || !dateRef.current) {
+      return;
+    }
+
+    // Retrieve heights
+    setBoxSize((boxRef.current as { clientHeight: number }).clientHeight);
+    setEventSize(
+      (eventRef.current as { clientHeight: number }).clientHeight + 2
+    );
+    setDateSize((dateRef.current as { clientHeight: number }).clientHeight);
+  }, []);
+
+  // Add event listener to get element size on resize
   React.useEffect(() => {
-    const onResize = (): void => {
-      // When no event ref or boxRef set, do nothing
-      if (!eventRef.current || !boxRef.current) {
-        return;
-      }
-
-      // Retrieve heights
-      const boxHeight = (boxRef.current as { clientHeight: number })
-        .clientHeight;
-      const eventHeight =
-        (eventRef.current as { clientHeight: number }).clientHeight + 2;
-      // Calculate how many entry can fit in the box
-      const numEvents = Math.min(
-        Math.max(
-          Math.floor(boxHeight / eventHeight) - 1, // Newly calculated
-          1 // Minimum 1 event
-        ),
-        eventList.length // Maximum number of events
-      );
-
-      // re-render box when available num event changes
-      if (numEventEntry !== numEvents) {
-        setNumEventEntry(numEvents);
-      }
-    };
-
     // Mount eventListener
-    window.addEventListener('resize', onResize);
-    onResize();
+    window.addEventListener('resize', updateElemSize);
 
     // Remove eventListener when component unmounts
     return (): void => {
-      window.removeEventListener('resize', onResize);
+      window.removeEventListener('resize', updateElemSize);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Update cell when parameter changes
+  React.useEffect(() => {
+    updateElemSize();
+
+    // Calculate how many entry can fit in the box
+    const numAvailable = Math.max(
+      Math.floor((boxSize - dateSize) / eventSize), // Newly calculated
+      1 // Minimum 1 event
+    );
+    const numEvents = Math.min(
+      numAvailable,
+      eventList.length // Maximum number of events
+    );
+
+    // re-render box when available num event changes
+    if (!isNaN(numEvents) && numEvents > 0 && numEventEntry !== numEvents) {
+      setNumEventEntry(numEvents);
+      setFinishedRender(true);
+    }
+
+    return (): void => {
+      if (finishedRender) {
+        setFinishedRender(false);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [boxSize, dateSize, eventSize, numEventEntry, eventList.length]);
 
   /**
    * Method to generate eventEntry Elements
@@ -127,7 +151,7 @@ function CalendarBox(props: CalendarBoxProps): React.ReactElement {
         elements.push(
           <Box
             ref={i === 0 ? eventRef : null}
-            sx={{ ...styleProvider(event.category) }}
+            sx={{ ...styleProvider(event.category, finishedRender) }}
             key={event.id}
           >
             <Typography component="div" variant="calendarEvent" noWrap>
@@ -142,7 +166,10 @@ function CalendarBox(props: CalendarBoxProps): React.ReactElement {
         elements.push(
           <Box
             ref={numSlot === 1 ? eventRef : null}
-            sx={{ ...styleProvider('more'), border: '1px solid black' }}
+            sx={{
+              ...styleProvider('more', finishedRender),
+              border: '1px solid black',
+            }}
             key={`${date}-more`}
           >
             <Typography
@@ -160,7 +187,7 @@ function CalendarBox(props: CalendarBoxProps): React.ReactElement {
       return elements;
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    []
+    [finishedRender]
   );
 
   // EventHandlers to open/close modal
@@ -177,7 +204,9 @@ function CalendarBox(props: CalendarBoxProps): React.ReactElement {
     <Box ref={boxRef} sx={calendarBoxStyle} onClick={handleOpen}>
       {date && (
         <>
-          <Typography variant="calendarBody">{date}</Typography>
+          <Typography ref={dateRef} variant="calendarBody" component="div">
+            {date}
+          </Typography>
           {getEventEntryElem(eventList, numEventEntry)}
           {modalOpen && (
             <DateEventModal
