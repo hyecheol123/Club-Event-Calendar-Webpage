@@ -120,14 +120,18 @@ function CalendarBox(props: CalendarBoxProps): React.ReactElement {
       setNumEventEntry(numEvents);
       setFinishedRender(true);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [boxSize, dateSize, eventSize, numEventEntry, eventList.length]);
 
+  // Reset rendering flag only when eventList.length changes
+  React.useEffect(() => {
     return (): void => {
       if (finishedRender) {
         setFinishedRender(false);
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [boxSize, dateSize, eventSize, numEventEntry, eventList.length]);
+  }, [eventList.length]);
 
   /**
    * Method to generate eventEntry Elements
