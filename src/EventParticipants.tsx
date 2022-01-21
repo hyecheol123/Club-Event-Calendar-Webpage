@@ -10,11 +10,13 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Box, Divider, Grid, IconButton, Typography } from '@mui/material';
 // Material UI Icon
 import { ArrowCircleLeftOutlined } from '@mui/icons-material';
+// API
+import getEventDetail from './api/event/getEventDetail';
+import getParticipantsList from './api/participate/getParticipantsList';
 // Global Style, Type, and Data
 import detailPageStyle from './globalStyle/detailPageStyle';
 import EventDetailData from './globalType/EventDetailData';
 import ParticipantInfo from './globalType/ParticipantInfo';
-import eventData from './globalData/eventDetail';
 // Custom Hook to load LoginContext
 import { useLoginContext } from './LoginData';
 // Components
@@ -48,90 +50,6 @@ const styles = {
   ...detailPageStyle,
 };
 
-const participantsData: { [index: string]: ParticipantsDetailData } = {
-  1: {
-    numParticipants: 1,
-    participantsList: [
-      {
-        id: 1,
-        participantName: '홍길동',
-        email: 'gildong.hong@gmail.com',
-        comment:
-          '디스코드 신규 가입 관련 이메일을 보냈습니다. 확인 부탁드립니다.',
-      },
-    ],
-  },
-  2: {
-    numParticipants: 3,
-    participantsList: [
-      {
-        id: 2,
-        participantName: '김철수',
-        email: 'cskim12@naver.com',
-        phoneNumber: '01012345678',
-      },
-      {
-        id: 4,
-        participantName: '최영희',
-        email: 'yhchoi@hanmail.net',
-        comment: '도착예정시간은 12시 입니다.',
-      },
-      {
-        id: 5,
-        participantName: 'James Lee',
-        email: 'superjames@gmail.com',
-        phoneNumber: '01056781234',
-        comment: '11시 30분쯤 도착할 것 같습니다. 자차 들고갑니다.',
-      },
-    ],
-  },
-  3: {
-    numParticipants: 6,
-    participantsList: [
-      {
-        id: 3,
-        participantName: '김철수',
-        email: 'cskim12@naver.com',
-        comment: '음 아이디는 cskim12입니다.',
-      },
-      {
-        id: 6,
-        participantName: 'James Lee',
-        email: 'superjames@gmail.com',
-        comment: 'mm 아이디: superjames',
-      },
-      {
-        id: 7,
-        participantName: '최영희',
-        email: 'yhchoi@hanmail.net',
-        comment: 'mm 계정은 yhchoi입니다.',
-      },
-      {
-        id: 8,
-        participantName: '홍길동',
-        email: 'gildong.hong@gmail.com',
-        comment: 'mm: @gildongHong',
-      },
-      {
-        id: 9,
-        participantName: '정현우',
-        email: 'gusdn@gmail.com',
-        comment: 'mm: @gusdn123',
-      },
-      {
-        id: 10,
-        participantName: '박지영',
-        email: 'jsp8392@naver.com',
-        phoneNumber: '01012348392',
-        comment: 'mm을 아직 가입하지 않았습니다.',
-      },
-    ],
-  },
-  4: {
-    numParticipants: 0,
-  },
-};
-
 /**
  * React Functional Component to generate event participant list screen
  *   Admin only.
@@ -140,6 +58,7 @@ const participantsData: { [index: string]: ParticipantsDetailData } = {
  */
 function EventParticipants(): React.ReactElement {
   const { state } = useLocation();
+  const { id } = useParams();
   const navigate = useNavigate();
   // State
   const loginContext = useLoginContext();
@@ -151,32 +70,53 @@ function EventParticipants(): React.ReactElement {
     React.useState<ParticipantsDetailData | null>(null);
   const [participantsModified, setParticipantsModified] = React.useState(true);
 
-  // Retrieve eventId from the path
-  const { id } = useParams();
-  if (!id) {
-    // TODO Redirect to 404 page
-  }
-
   // Function to load Event Detail and Participants Detail
-  const loadData = React.useCallback(() => {
-    // TODO: API Call
-    const eventResponse = eventData[id as string];
-    const participationResponse = participantsData[id as string];
-    const eventDate = new Date(
-      eventResponse.year,
-      eventResponse.month - 1,
-      eventResponse.date
-    );
-    setEventDetail(eventResponse);
-    setDateString(
-      String.prototype.concat(
-        `${eventDate.toLocaleDateString('en-US', { month: 'short' })}. `,
-        `${String(eventResponse.date).padStart(2, '0')}. `,
-        eventResponse.year.toString()
-      )
-    );
-    setParticipantsDetail(participationResponse);
-  }, [id]);
+  const loadData = React.useCallback(async () => {
+    // If id is not set, redirect to main page with error message
+    if (!id) {
+      // Redirect to main page
+      navigate('/', { state: { errorMsg: 'Page Not Found' } });
+      return;
+    }
+
+    // Event Detail API Call
+    const eventResponse = await getEventDetail(id as string);
+    if (eventResponse.status >= 200 && eventResponse.status < 300) {
+      const data = await eventResponse.json();
+      const eventDate = new Date(data.year, data.month - 1, data.date);
+      setEventDetail(data);
+      setDateString(
+        `${eventDate.toLocaleDateString('en-US', {
+          month: 'short',
+        })}. ${String(data.date).padStart(2, '0')}. ${data.year}`
+      );
+    } else {
+      // Event Not Found
+      // Redirect to main page
+      navigate('/', { state: { errorMsg: 'Page Not Found' } });
+      return;
+    }
+
+    // Participant List API Call
+    const participationResponse = await getParticipantsList(id as string);
+    if (
+      participationResponse.status >= 200 &&
+      participationResponse.status < 300
+    ) {
+      const data = await participationResponse.json();
+      setParticipantsDetail(data);
+    } else if (participationResponse.status === 401) {
+      // Authentication Fail
+      // TODO: Retry after refresh the access token
+      // If fail
+      // Redirect to main page
+      navigate('/', { state: { errorMsg: 'Authentication Fail' } });
+    } else if (participationResponse.status === 404) {
+      // Page Not Found
+      // Redirect to main page
+      navigate('/', { state: { errorMsg: 'Page Not Found' } });
+    }
+  }, [id, navigate]);
 
   // Load Data on first load and when participantsModified flag set
   React.useEffect(() => {

@@ -10,10 +10,11 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Box, Divider, Grid, IconButton, Typography } from '@mui/material';
 // Material UI Icon
 import { ArrowCircleLeftOutlined } from '@mui/icons-material';
+// API
+import getEventDetail from './api/event/getEventDetail';
 // Global Style, Type, and Data
 import styles from './globalStyle/detailPageStyle';
 import EventDetailData from './globalType/EventDetailData';
-import data from './globalData/eventDetail';
 // Custom Hook to load LoginContext
 import { useLoginContext } from './LoginData';
 // Components
@@ -28,6 +29,7 @@ const AdminBtn = React.lazy(() => import('./components/EventDetail/AdminBtn'));
  */
 function EventDetail(): React.ReactElement {
   const { state } = useLocation();
+  const { id } = useParams();
   const navigate = useNavigate();
   // State
   const [eventDetail, setEventDetail] = React.useState<EventDetailData | null>(
@@ -37,28 +39,32 @@ function EventDetail(): React.ReactElement {
   const [eventModified, setEventModified] = React.useState(true);
   const loginContext = useLoginContext();
 
-  // Retrieve eventId from the path
-  const { id } = useParams();
-  if (!id) {
-    // TODO Redirect to 404 page
-  }
-
   // Function to load event detail
-  const loadDetail = React.useCallback(() => {
-    // TODO: API Call
-    const response = data[id as string];
-    const eventDate = new Date(
-      response.year,
-      response.month - 1,
-      response.date
-    );
-    setEventDetail(response);
-    setDateString(
-      `${eventDate.toLocaleDateString('en-US', {
-        month: 'short',
-      })}. ${String(response.date).padStart(2, '0')}. ${response.year}`
-    );
-  }, [id]);
+  const loadDetail = React.useCallback(async () => {
+    // If id is not set, redirect to main page with error message
+    if (!id) {
+      // Redirect to main page
+      navigate('/', { state: { errorMsg: 'Page Not Found' } });
+      return;
+    }
+
+    // API Call
+    const response = await getEventDetail(id as string);
+    if (response.status >= 200 && response.status < 300) {
+      const data = await response.json();
+      const eventDate = new Date(data.year, data.month - 1, data.date);
+      setEventDetail(data);
+      setDateString(
+        `${eventDate.toLocaleDateString('en-US', {
+          month: 'short',
+        })}. ${String(data.date).padStart(2, '0')}. ${data.year}`
+      );
+    } else {
+      // Event Not Found
+      // Redirect to main page
+      navigate('/', { state: { errorMsg: 'Page Not Found' } });
+    }
+  }, [id, navigate]);
 
   // Load Detail on first load and when eventModified flag set
   React.useEffect(() => {
